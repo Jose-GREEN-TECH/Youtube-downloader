@@ -12,7 +12,7 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# Premium Custom CSS (Kept your original styling)
+# Premium Custom CSS (Jose's Original Design)
 st.markdown("""
 <style>
     .stApp { background: linear-gradient(135deg, #0f2027, #203a43, #2c5364); font-family: 'Inter', sans-serif; }
@@ -26,10 +26,6 @@ st.markdown("""
         -webkit-background-clip: text; -webkit-text-fill-color: transparent;
         font-size: 3.5rem !important; font-weight: 800 !important; }
     p { text-align: center; color: #A0AEC0; font-size: 1.15rem; }
-    .stTextInput input, .stSelectbox div[data-baseweb="select"] > div {
-        background-color: rgba(0, 0, 0, 0.3) !important; color: white !important;
-        border-radius: 12px !important; border: 1px solid rgba(255, 255, 255, 0.15) !important;
-    }
     button[kind="primary"] {
         background: linear-gradient(90deg, #FF416C 0%, #FF4B2B 100%) !important;
         border-radius: 50px !important; font-weight: 700 !important; width: 100% !important;
@@ -37,6 +33,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
+# Application Logic
 with st.container():
     st.markdown("<h1>Ultra Downloader 🚀</h1>", unsafe_allow_html=True)
     st.markdown("<p>Download YouTube Videos & Audio securely to your device.</p>", unsafe_allow_html=True)
@@ -46,12 +43,6 @@ with st.container():
     format_choice = st.selectbox("📂 Format", ["Video (MP4)", "Audio (MP3)"])
 
     st.markdown("<hr>", unsafe_allow_html=True)
-
-    # State management for the file buffer
-    if 'download_ready' not in st.session_state:
-        st.session_state.download_ready = False
-        st.session_state.file_data = None
-        st.session_state.file_name = ""
 
     if st.button("Download Now 🎬", type="primary"):
         if not url:
@@ -63,25 +54,24 @@ with st.container():
             def my_hook(d):
                 if d['status'] == 'downloading':
                     try:
-                        p = d.get('_percent_str', '0%').replace('%','')
-                        progress_bar.progress(int(float(p)))
-                        status_placeholder.info(f"⚡ Downloading: {p}%")
+                        p_str = d.get('_percent_str', '0%').replace('%','').strip()
+                        p_float = float(''.join(c for c in p_str if c.isdigit() or c == '.'))
+                        progress_bar.progress(int(p_float))
+                        status_placeholder.info(f"⚡ Processing: {p_str}%")
                     except: pass
-                if d['status'] == 'finished':
-                    progress_bar.progress(100)
 
-            # Create a temporary directory to store the file before serving it
             with tempfile.TemporaryDirectory() as tmp_dir:
+                # ADVANCED CONFIG TO BYPASS 403 FORBIDDEN
                 ydl_opts = {
                     'outtmpl': os.path.join(tmp_dir, '%(title)s.%(ext)s'),
                     'progress_hooks': [my_hook],
                     'nocheckcertificate': True,
-                    'socket_timeout': 30,
+                    # Browser Impersonation
                     'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                    'http_headers': {
-                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                        'Accept-Language': 'en-US,en;q=0.9',
-                    },
+                    # Link to your uploaded cookies file
+                    'cookiefile': 'cookies.txt' if os.path.exists('cookies.txt') else None,
+                    # Modern YouTube protocol bypass
+                    'extractor_args': {'youtube': {'player_client': ['android', 'web']}},
                 }
 
                 if format_choice == "Audio (MP3)":
@@ -94,28 +84,26 @@ with st.container():
 
                 try:
                     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                        status_placeholder.info("🔍 Bypassing security...")
                         info = ydl.extract_info(url, download=True)
                         file_path = ydl.prepare_filename(info)
+                        
+                        # Correct extension for MP3 post-processing
                         if format_choice == "Audio (MP3)":
-                            file_path = file_path.rsplit('.', 1)[0] + ".mp3"
+                            file_path = os.path.splitext(file_path)[0] + ".mp3"
                         
                         with open(file_path, "rb") as f:
-                            st.session_state.file_data = f.read()
-                            st.session_state.file_name = os.path.basename(file_path)
-                            st.session_state.download_ready = True
+                            file_bytes = f.read()
+                            st.download_button(
+                                label="💾 Save to PC",
+                                data=file_bytes,
+                                file_name=os.path.basename(file_path),
+                                mime="video/mp4" if "MP4" in format_choice else "audio/mpeg",
+                                use_container_width=True
+                            )
                     
-                    status_placeholder.success("✅ Ready for saving!")
+                    status_placeholder.success("✅ Download Prepared Successfully!")
+                    st.balloons()
                 except Exception as e:
-                    status_placeholder.error(f"❌ Error: {str(e)}")
-                    st.session_state.download_ready = False
-
-    # Show the actual browser download button once processed
-    if st.session_state.download_ready:
-        st.download_button(
-            label="💾 Click here to Save to PC",
-            data=st.session_state.file_data,
-            file_name=st.session_state.file_name,
-            mime="video/mp4" if "MP4" in format_choice else "audio/mpeg",
-            use_container_width=True
-        )
-        st.balloons()
+                    status_placeholder.error(f"❌ Critical Error: {str(e)}")
+                    st.info("💡 Hint: Ensure 'cookies.txt' is uploaded to GitHub and hasn't expired.")
