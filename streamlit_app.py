@@ -76,6 +76,12 @@ with st.container():
                     'outtmpl': os.path.join(tmp_dir, '%(title)s.%(ext)s'),
                     'progress_hooks': [my_hook],
                     'nocheckcertificate': True,
+                    'socket_timeout': 30,
+                    'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                    'http_headers': {
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                        'Accept-Language': 'en-US,en;q=0.9',
+                    },
                 }
 
                 if format_choice == "Audio (MP3)":
@@ -101,6 +107,7 @@ with st.container():
                     status_placeholder.success("✅ Ready for saving!")
                 except Exception as e:
                     status_placeholder.error(f"❌ Error: {str(e)}")
+                    st.session_state.download_ready = False
 
     # Show the actual browser download button once processed
     if st.session_state.download_ready:
